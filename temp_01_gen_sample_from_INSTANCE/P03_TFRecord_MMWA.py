@@ -1,6 +1,5 @@
 import os
 import sys
-sys.path.append('../R')
 sys.path.append('../REDPAN_tools')
 import numpy as np
 import pandas as pd
