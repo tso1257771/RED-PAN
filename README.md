@@ -4,7 +4,7 @@ Real-time Earthquake Detection and Phase-picking with multi-task Attention Netwo
 In this repository, we provide four template scripts:<br />
 
 (1) temp_01_gen_sample_from_INSTANCE<br /> 
-generate some samples using Earthquake Early Warning Augmentation (EEWA) and Marching Mosaic Waveform Augmentation (MMWA) using [https://github.com/INGV/instance INSTANCE] dataset.<br />
+generate some samples using Earthquake Early Warning Augmentation (EEWA) and Marching Mosaic Waveform Augmentation (MMWA) using [INSTANCE](https://github.com/INGV/instance) dataset.<br />
 
 (2) temp_02_model_pretrain<br />
 fine-tune the trained model using few samples generated in temp_01_gen_sample_from_INSTANCE<br />
