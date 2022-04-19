@@ -9,8 +9,8 @@ generate some samples using Earthquake Early Warning Augmentation (EEWA) and Mar
 (2) temp_02_model_pretrain<br />
 fine-tune the trained model using few samples generated in temp_01_gen_sample_from_INSTANCE<br />
 
-(3) temp_03_continuous_predict
+(3) temp_03_continuous_predict<br />
 process continuous data using Seismogram-Tracking Medium Filter (STMF) <br />
 
-(4) temp_04_realtime_predict
+(4) temp_04_realtime_predict<br />
 triggering P arrivals using information-clipped earthquake waveform, simulating the conditions of processing real-time data.
