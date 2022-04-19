@@ -1,0 +1,17 @@
+name: REDPAN
+
+channels:
+  - conda-forge
+  - defaults
+  
+dependencies:
+  - python>=3.6
+  - anaconda
+  - pip
+  - matplotlib=3.3.2
+  - pandas=1.2.0
+  - numpy=1.21.0     
+  - tensorflow-gpu=2.5.0
+  - pip:
+    - obspy=1.2.2
+    - tensorflow-addons=0.11.2
