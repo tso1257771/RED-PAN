@@ -2,8 +2,7 @@
 This is the official implementation of **Real-time Earthquake Detection and Phase-picking with multi-task Attention Network**<br />
 
 
-
-https://user-images.githubusercontent.com/30610646/164022813-c1e1f807-f2fb-4e9a-9cbc-1d8017ac0d79.mp4
+https://user-images.githubusercontent.com/30610646/166941015-921d6ba1-f77e-4413-a532-e3e5af6d658f.mp4
 
 
 
