@@ -13,6 +13,13 @@ https://user-images.githubusercontent.com/30610646/166941015-921d6ba1-f77e-4413-
 ### Installation
 To run this repository, we suggest to install packages with Anaconda.
 
+Clone this repository:
+
+```bash
+git clone https://github.com/tso1257771/RED-PAN.git
+cd RED-PAN
+```
+
 Create a new environment via environment.yml 
 
 ```bash
@@ -20,12 +27,6 @@ conda env create --file environment.yml
 conda activate REDPAN
 ```
 
-Clone this repository:
-
-```bash
-git clone https://github.com/tso1257771/RED-PAN.git
-cd RED-PAN
-```
 
 ### Project Architecture
 
