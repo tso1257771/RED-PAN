@@ -20,14 +20,14 @@ git clone https://github.com/tso1257771/RED-PAN.git
 cd RED-PAN
 ```
 
-Create a new environment via pip
+Create a new environment via pip (suggested)
 
 ```bash
-conda create --name REDPAN python==3.7.3 anaconda
+conda create --name REDPAN python==3.7.3 
 conda activate REDPAN
 pip install -r requirements.txt
 ```
-or via environment.yml (suggested)
+or via environment.yml 
 
 ```bash
 conda env create --file environment.yml
