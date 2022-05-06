@@ -1,3 +1,7 @@
+ipython
+sklearn
+opencv-python
+pandas==1.2.0
 matplotlib==3.3.2  
 obspy==1.2.2
 tensorflow-gpu==2.5.0
