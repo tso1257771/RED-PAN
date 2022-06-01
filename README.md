@@ -23,13 +23,16 @@ cd RED-PAN
 Create a new environment via pip (suggested)
 
 ```bash
+conda update conda
 conda create --name REDPAN python==3.7.3 
 conda activate REDPAN
 pip install -r requirements.txt
+conda activate REDPAN
 ```
 or via environment.yml 
 
 ```bash
+conda update conda
 conda env create --file environment.yml
 conda activate REDPAN
 ```
