@@ -14,7 +14,7 @@ dependencies:
     - opencv-python
     - matplotlib==3.3.2  
     - obspy==1.2.2
-    - tensorflow-gpu==2.5.0
+    - tensorflow==2.5.0
     - tensorflow-addons==0.11.2
     - mpi4py=3.0.3
     - numba=0.51.2
