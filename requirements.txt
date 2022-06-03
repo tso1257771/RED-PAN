@@ -7,4 +7,4 @@ obspy==1.2.2
 tensorflow-gpu==2.5.0
 tensorflow-addons==0.11.2
 mpi4py==3.0.3
-numba=0.51.2
+numba==0.51.2
