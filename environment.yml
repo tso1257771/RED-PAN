@@ -18,4 +18,4 @@ dependencies:
     - tensorflow==2.4.0
     - tensorflow-addons==0.11.2
     #- mpi4py=3.0.3
-    - numba=0.51.2
+    - numba==0.51.2
