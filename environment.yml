@@ -10,6 +10,7 @@ dependencies:
   - pip
 
   - pip:
+    - ipython
     - sklearn
     - opencv-python
     - matplotlib==3.3.2  
