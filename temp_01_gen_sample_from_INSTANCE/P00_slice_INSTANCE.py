@@ -26,7 +26,8 @@ logging.basicConfig(level=logging.INFO,
 datadir = './'
 outdir = os.path.join(datadir, 'wf_data', 'data')
 meta_out = os.path.join(datadir, 'wf_data', 'evlist.csv')
-os.system(f'rm -rf {outdir}')
+#os.system(f'rm -rf {outdir}')
+os.remove(f'{outdir}')
 if not os.path.exists(outdir):
     os.makedirs(outdir)
 meta_f = open(meta_out, 'w')
