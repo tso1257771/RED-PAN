@@ -27,7 +27,8 @@ outpath = './tfrecord'
 outdir_single = os.path.join(outpath, 'singleEQ_zeropad')
 figdir_single = os.path.join(outpath, 'fig/fig_singleEQ_zeropad')
 
-os.system(f'rm -rf {outdir_single} {figdir_single}')
+#os.system(f'rm -rf {outdir_single} {figdir_single}')
+os.remove(f'{outdir_single} {figdir_single}')
 os.makedirs(outdir_single); os.makedirs(figdir_single)
 
 wf_npts = 6000
