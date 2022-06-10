@@ -27,8 +27,8 @@ datadir = './Ridgecrest_WFs'
 outdir = f'./out_data/{mdl_hdr}_pred_Ridgecrest_WFs'
 
 # if you want to remove prediction directories, uncommand this line
-os.system(f'rm -rf {outdir}')
-
+#os.system(f'rm -rf {outdir}')
+os.remove(f'{outdir}')
 ### load self-defined model and data process framework 
 model_h5 = os.path.join(f'../pretrained_model/{mdl_hdr}', 'train.hdf5')
 
