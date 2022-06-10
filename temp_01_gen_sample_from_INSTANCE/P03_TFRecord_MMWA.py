@@ -25,7 +25,8 @@ meta_df = pd.read_table('./wf_data/evlist.csv', header=0, delimiter='\s+',
 # define output path
 outdir = os.path.join('./tfrecord', 'MMWA')
 figdir = os.path.join('./tfrecord', 'fig/fig_MMWA')
-os.system(f'rm -rf {outdir} {figdir}')
+#os.system(f'rm -rf {outdir} {figdir}')
+os.remove(f'{outdir} {figdir}')
 os.makedirs(outdir); os.makedirs(figdir)
 # mosaic waveform information
 out_f = os.path.join(outdir, 'info.txt')
