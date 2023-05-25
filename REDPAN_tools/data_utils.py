@@ -294,13 +294,7 @@ def stream_standardize(st, data_length):
     data_len = [len(i.data) for i in st]
     check_len = np.array_equal(data_len, np.repeat(data_length, 3))
     if not check_len:
-        for s in st:
-            res_len = len(s.data) - data_length
-            if res_len > 0:
-                s.data = s.data[:data_length]
-            elif res_len < 0:
-                last_pt = 0  # s.data[-1]
-                s = sac_len_complement(s, max_length=data_length)
+        st = sac_len_complement(st, max_length=data_length)
 
     st = st.detrend("demean")
     for s in st:
