@@ -294,13 +294,7 @@ def stream_standardize(st, data_length):
     data_len = [len(i.data) for i in st]
     check_len = np.array_equal(data_len, np.repeat(data_length, 3))
     if not check_len:
-        for s in st:
-            res_len = len(s.data) - data_length
-            if res_len > 0:
-                s.data = s.data[:data_length]
-            elif res_len < 0:
-                last_pt = 0  # s.data[-1]
-                s = sac_len_complement(s, max_length=data_length)
+        st = sac_len_complement(st, max_length=data_length)
 
     st = st.detrend("demean")
     for s in st:
@@ -599,6 +593,7 @@ class PhasePicker:
         seg_n = np.round(wf[0].stats.npts / int(STMF_max_sec/wf[0].stats.delta))\
             .astype(int)
         if seg_n == 0:
+            P_stream, S_stream, M_stream = Stream(), Stream(), Stream()
             wf = stream_standardize(wf, data_length=self.pred_npts)
 
             array_pick, array_mask = self.model(
@@ -609,12 +604,12 @@ class PhasePicker:
 
             W_data = [array_p, array_s, array_m]
             W_chn = ["redpan_P", "redpan_S", "redpan_mask"]
-            W_sac = []
+            W_sac = [array_P_med, array_S_med, array_M_med]
             for k in range(3):
                 W = wf[0].copy()
                 W.data = W_data[k]
                 W.stats.channel = W_chn[k]
-                W_sac.append(W)
+                W_sac[k].append(W)
             P_stream, S_stream, M_stream = W_sac
             return P_stream, S_stream, M_stream
 
