@@ -604,13 +604,12 @@ class PhasePicker:
 
             W_data = [array_p, array_s, array_m]
             W_chn = ["redpan_P", "redpan_S", "redpan_mask"]
-            W_sac = [array_P_med, array_S_med, array_M_med]
+            W_sac = [P_stream, S_stream, M_stream]
             for k in range(3):
                 W = wf[0].copy()
                 W.data = W_data[k]
                 W.stats.channel = W_chn[k]
                 W_sac[k].append(W)
-            P_stream, S_stream, M_stream = W_sac
             return P_stream, S_stream, M_stream
 
         seg_wf_stt = np.array([wf_stt + STMF_max_sec*S for S in range(seg_n)])
