@@ -11,9 +11,11 @@ import logging
 import shutil
 import numpy as np
 import tensorflow as tf
+from copy import deepcopy
 from glob import glob
 from obspy import read
 from model_loader import redpan_picker
+from REDPAN_picker import extract_picks
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 gpu_devices = tf.config.list_physical_devices("GPU")
@@ -86,7 +88,13 @@ for D in range(len(Ddir)):
             f"Processing {os.path.join(Ddir[D], wf_idx[ct])}:"
             f" {ct+1}/{len(wf_idx)} | Directory: {D+1}/{len(Ddir)}")
         
+        # Read the file  using `obspy.read` class.
         wf = read(os.path.join(Ddir[D], wf_idx[ct]))
+
+        # You can remove the instrument response on this stream for
+        # amplitude estimation
+        raw_wf = deepcopy(wf)
+
         if bandpass:
             wf = wf.detrend("demean").filter("bandpass", 
                     freqmin=bandpass[0], freqmax=bandpass[1])
@@ -97,12 +105,43 @@ for D in range(len(Ddir)):
         # prevent from memory insufficiency. Default to 1200.
         
         P_stream, S_stream, M_stream = \
-            picker.annotate_stream(wf, STMF_max_sec=1800)
+            picker.annotate_stream(wf, STMF_max_sec=1200)
+        
+        # pick_df is the pandas dataframe of extracted picks
+        # noted that the column 'amp' is useless unless the unit of 
+        # ${raw_wf} is converted to real amplitude , for example:
+        # raw_wf[0].data /= E_factor
+        # raw_wf[1].data /= N_factor
+        # raw_wf[2].data /= Z_factor
+
+        pick_df = extract_picks(
+            raw_wf, 
+            P_stream, 
+            S_stream, 
+            M_stream, 
+            dt=0.01,
+            p_amp_estimate_sec=1, 
+            s_amp_estimate_sec=3,
+            args={"detection_threshold":0.5, "P_threshold":0.3, "S_threshold":0.3}
+        )
+        #              id                timestamp           amp      prob type
+        # 0    CI.CCC..HH  2019-07-07T07:50:08.637   9198.138504  0.543340    p
+        # 1    CI.CCC..HH  2019-07-07T07:50:14.257  13686.979834  0.914223    s
+        # 2    CI.CCC..HH  2019-07-07T07:50:48.377   2612.497834  0.399723    p
+        # 3    CI.CCC..HH  2019-07-07T07:50:53.147   4540.355622  0.796342    s
+        # 4    CI.CCC..HH  2019-07-07T07:52:23.767   2129.819425  0.552528    p
+        # ..          ...                      ...           ...       ...  ... 
+        print("*"*100)
+        print("Feel free to manipulate this ${pick_df}:")
+        print(pick_df)
+        print("*"*100)
         
         ### write continuous predictions into sac format
+
         outDdir = os.path.join(outdir, os.path.basename(Ddir[D]))
         if not os.path.exists(outDdir):
             os.makedirs(outDdir)
+        print(f"Write predictions in SAC format to {outDdir}")
 
         W = [P_stream, S_stream, M_stream]
         W_name = wf_idx[ct].replace("?", "")
