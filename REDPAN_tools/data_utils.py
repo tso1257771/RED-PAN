@@ -2,7 +2,7 @@ import gc
 import numpy as np
 from scipy.signal import tukey
 from scipy.signal import find_peaks
-from obspy import read
+from obspy import read, Stream
 from obspy.signal import filter
 from obspy.signal.filter import envelope
 from obspy.signal.trigger import trigger_onset
@@ -265,7 +265,6 @@ def conti_standard_wf_fast(wf, pred_npts, pred_interval_sec, dt, pad_zeros=True)
     wf_slices = np.stack([wf_n[0], wf_n[1], wf_n[2]], -1)
     return np.array(wf_slices), pad_bef, pad_aft
 
-
 def sac_len_complement(wf, max_length=None):
     '''Complement sac data into the same length
     '''
@@ -286,7 +285,6 @@ def sac_len_complement(wf, max_length=None):
         elif append_npts < 0:
             wf[w].data = wf[w].data[:max_n]
     return wf
-
 
 def stream_standardize(st, data_length):
     """
@@ -515,6 +513,7 @@ class PhasePicker:
         dt=0.01,
         pred_npts=2001,
         pred_interval_sec=4,
+        STMF_max_sec=1200,
         postprocess_config={
             "mask_trigger": [0.1, 0.1],
             "mask_len_thre": 0.5,
@@ -529,6 +528,7 @@ class PhasePicker:
         self.dt = dt
         self.pred_npts = pred_npts
         self.pred_interval_sec = pred_interval_sec
+        self.STMF_max_sec = STMF_max_sec # Seismogram-Tracking Median Filter length
         self.postprocess_config = postprocess_config
 
         if model == None:
@@ -591,6 +591,63 @@ class PhasePicker:
             )
 
         return array_P_med, array_S_med, array_M_med
+    
+    def annotate_stream(self, wf, STMF_max_sec=None):
+        wf_stt = wf[0].stats.starttime
+        if not STMF_max_sec:
+            STMF_max_sec = self.STMF_max_sec
+        seg_n = np.round(wf[0].stats.npts / int(STMF_max_sec/wf[0].stats.delta))\
+            .astype(int)
+        if seg_n == 0:
+            wf = stream_standardize(
+                sac_len_complement(wf), data_length=self.pred_npts
+            )
+
+            array_pick, array_mask = self.model(
+                np.stack([W.data for W in wf], -1)[np.newaxis, ...]
+            )
+            array_p, array_s = array_pick[0].numpy().T[:2]
+            array_m = array_mask[0].numpy().T[0]
+
+            W_data = [array_p, array_s, array_m]
+            W_chn = ["redpan_P", "redpan_S", "redpan_mask"]
+            W_sac = []
+            for k in range(3):
+                W = wf[0].copy()
+                W.data = W_data[k]
+                W.stats.channel = W_chn[k]
+                W_sac.append(W)
+            P_stream, S_stream, M_stream = W_sac
+            return P_stream, S_stream, M_stream
+
+        seg_wf_stt = np.array([wf_stt + STMF_max_sec*S for S in range(seg_n)])
+        P_stream, S_stream, M_stream = Stream(), Stream(), Stream()
+        for S in range(seg_n):
+            if S == 0:
+                seg_slice_stt = seg_wf_stt[S]
+            else:
+                seg_slice_stt = seg_wf_stt[S] - self.pred_npts*self.dt
+            if S != seg_n - 1:
+                seg_slice_ent = seg_wf_stt[S] + STMF_max_sec + self.pred_npts*self.dt
+            else:
+                seg_slice_ent = wf[0].stats.endtime
+            _wf = deepcopy(wf).slice(seg_slice_stt, seg_slice_ent)
+            ### phase picking and detection
+            array_P_med, array_S_med, array_M_med = self.predict(_wf, 
+                postprocess=self.postprocess_config)
+
+            W_data = [array_P_med, array_S_med, array_M_med]
+            W_chn = ["redpan_P", "redpan_S", "redpan_mask"]
+            W_sac = [P_stream, S_stream, M_stream]
+            for k in range(3):
+                W = _wf[0].copy()
+                W.data = W_data[k]
+                W.stats.channel = W_chn[k]
+                W_sac[k].append(W)
+        P_stream = P_stream.merge(method=1)
+        S_stream = S_stream.merge(method=1)
+        M_stream = M_stream.merge(method=1)
+        return P_stream, S_stream, M_stream
 
 
 if __name__ == "__main__":
