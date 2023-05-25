@@ -300,7 +300,7 @@ def stream_standardize(st, data_length):
                 s.data = s.data[:data_length]
             elif res_len < 0:
                 last_pt = 0  # s.data[-1]
-                s.data = np.insert(s.data, -1, np.repeat(last_pt, -res_len))
+                s = sac_len_complement(s, max_length=data_length)
 
     st = st.detrend("demean")
     for s in st:
@@ -511,8 +511,8 @@ class PhasePicker:
         self,
         model=None,
         dt=0.01,
-        pred_npts=2001,
-        pred_interval_sec=4,
+        pred_npts=3000,
+        pred_interval_sec=10,
         STMF_max_sec=1200,
         postprocess_config={
             "mask_trigger": [0.1, 0.1],
@@ -599,9 +599,7 @@ class PhasePicker:
         seg_n = np.round(wf[0].stats.npts / int(STMF_max_sec/wf[0].stats.delta))\
             .astype(int)
         if seg_n == 0:
-            wf = stream_standardize(
-                sac_len_complement(wf), data_length=self.pred_npts
-            )
+            wf = stream_standardize(wf, data_length=self.pred_npts)
 
             array_pick, array_mask = self.model(
                 np.stack([W.data for W in wf], -1)[np.newaxis, ...]
