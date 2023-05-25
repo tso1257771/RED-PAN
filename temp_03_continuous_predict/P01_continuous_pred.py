@@ -132,7 +132,7 @@ for D in range(len(Ddir)):
         # 4    CI.CCC..HH  2019-07-07T07:52:23.767   2129.819425  0.552528    p
         # ..          ...                      ...           ...       ...  ... 
         print("*"*100)
-        print("Feel free to manipulate this ${pick_df}:")
+        print("Feel free to manipulate this variable ${pick_df}:")
         print(pick_df)
         print("*"*100)
         
@@ -141,7 +141,7 @@ for D in range(len(Ddir)):
         outDdir = os.path.join(outdir, os.path.basename(Ddir[D]))
         if not os.path.exists(outDdir):
             os.makedirs(outDdir)
-        print(f"Write predictions in SAC format to {outDdir}")
+        print(f"Write predictions in SAC format to {outDdir}\n")
 
         W = [P_stream, S_stream, M_stream]
         W_name = wf_idx[ct].replace("?", "")
