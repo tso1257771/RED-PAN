@@ -15,6 +15,7 @@ from copy import deepcopy
 from glob import glob
 from obspy import read
 from model_loader import redpan_picker
+from data_utils import sac_len_complement
 from REDPAN_picker import extract_picks
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -90,7 +91,13 @@ for D in range(len(Ddir)):
         
         # Read the file  using `obspy.read` class.
         wf = read(os.path.join(Ddir[D], wf_idx[ct]))
-
+        # complement the data if data npts is not consistent over all channels
+        wf = sac_len_complement(wf)
+        # complement the channel data if some channels are missing
+        if len(wf) != 3:
+            for _ in range(3-len(wf)):
+                wf.append(wf[-1])
+                
         # You can remove the instrument response on this stream for
         # amplitude estimation
         raw_wf = deepcopy(wf)
