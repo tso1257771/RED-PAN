@@ -586,31 +586,132 @@ class PhasePicker:
 
         return array_P_med, array_S_med, array_M_med
     
-    def annotate_stream(self, wf, STMF_max_sec=None):
+    def annotate_stream(self, wf, STMF_max_sec=None, postprocess=False):
         wf_stt = wf[0].stats.starttime
         if not STMF_max_sec:
             STMF_max_sec = self.STMF_max_sec
-        seg_n = np.round(wf[0].stats.npts / int(STMF_max_sec/wf[0].stats.delta))\
-            .astype(int)
-        if seg_n == 0:
+        # < Case 1 >
+        # if data samples are smaller than model receptive field (npts),
+        # append the data to the same length and make predictions
+        if wf[0].stats.npts <= self.pred_npts:
+            _wf = deepcopy(wf)
+            _wf = stream_standardize(_wf, data_length=self.pred_npts)
             P_stream, S_stream, M_stream = Stream(), Stream(), Stream()
-            wf = stream_standardize(wf, data_length=self.pred_npts)
-
             array_pick, array_mask = self.model(
-                np.stack([W.data for W in wf], -1)[np.newaxis, ...]
+                np.stack([W.data for W in _wf], -1)[np.newaxis, ...]
             )
             array_p, array_s = array_pick[0].numpy().T[:2]
             array_m = array_mask[0].numpy().T[0]
+            
+            gc.collect()
+            # replace nan by 0
+            find_nan = np.where(np.isnan(array_m))[0]
+            array_p[find_nan] = np.zeros(len(find_nan))
+            array_s[find_nan] = np.zeros(len(find_nan))
+            array_m[find_nan] = np.zeros(len(find_nan))
+            # replace inf by 0
+            find_inf = np.where(np.isnan(array_m))[0]
+            array_p[find_inf] = np.zeros(len(find_inf))
+            array_s[find_inf] = np.zeros(len(find_inf))
+            array_m[find_inf] = np.zeros(len(find_inf))
+
+            if postprocess:
+                array_p, array_s, array_m = pred_postprocess(
+                    array_p,
+                    array_s,
+                    array_m,
+                    dt=self.dt,
+                    **self.postprocess_config,
+                )
 
             W_data = [array_p, array_s, array_m]
             W_chn = ["redpan_P", "redpan_S", "redpan_mask"]
             W_sac = [P_stream, S_stream, M_stream]
             for k in range(3):
-                W = wf[0].copy()
+                W = deepcopy(_wf[0])
                 W.data = W_data[k]
                 W.stats.channel = W_chn[k]
                 W_sac[k].append(W)
+            P_stream = P_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
+            S_stream = S_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
+            M_stream = M_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
             return P_stream, S_stream, M_stream
+
+        # < Case 2 >
+        # Data samples are larger than model receptive field but smaller than
+        # STMF_max_sec/delta
+        elif (wf[0].stats.npts > self.pred_npts) and \
+            (wf[0].stats.npts < int(STMF_max_sec/wf[0].stats.delta)):
+
+            _wf = sac_len_complement(deepcopy(wf), len(wf[0].data)+self.pred_npts)
+            P_stream, S_stream, M_stream = Stream(), Stream(), Stream()
+
+            wf_slices, pad_bef, pad_aft = conti_standard_wf_fast(
+                _wf,
+                pred_npts=self.pred_npts,
+                pred_interval_sec=self.pred_interval_sec,
+                dt=self.dt,
+            )
+            
+            predPhase, masks = self.model.predict(wf_slices)
+            del wf_slices
+            gc.collect()
+
+            # print(f"Prediction making: {time()-t1:.2f} secs")
+            ## apply median filter to sliding predictions
+            wf_npts = len(_wf[0].data)
+            array_P_med, array_S_med, array_M_med = pred_MedianFilter(
+                preds=predPhase,
+                masks=masks,
+                wf_npts=wf_npts,
+                dt=self.dt,
+                pred_npts=self.pred_npts,
+                pred_interval_sec=self.pred_interval_sec,
+                pad_bef=pad_bef,
+                pad_aft=pad_aft,
+            )
+
+            del predPhase
+            del masks
+            gc.collect()
+            # replace nan by 0
+            find_nan = np.where(np.isnan(array_M_med))[0]
+            array_P_med[find_nan] = np.zeros(len(find_nan))
+            array_S_med[find_nan] = np.zeros(len(find_nan))
+            array_M_med[find_nan] = np.zeros(len(find_nan))
+            # replace inf by 0
+            find_inf = np.where(np.isnan(array_M_med))[0]
+            array_P_med[find_inf] = np.zeros(len(find_inf))
+            array_S_med[find_inf] = np.zeros(len(find_inf))
+            array_M_med[find_inf] = np.zeros(len(find_inf))
+
+            if postprocess:
+                array_P_med, array_S_med, array_M_med = pred_postprocess(
+                    array_P_med,
+                    array_S_med,
+                    array_M_med,
+                    dt=self.dt,
+                    **self.postprocess_config,
+                )
+
+            W_data = [array_P_med, array_S_med, array_M_med]
+            W_chn = ["redpan_P", "redpan_S", "redpan_mask"]
+            W_sac = [P_stream, S_stream, M_stream]
+            for k in range(3):
+                W = _wf[0].copy()
+                W.data = W_data[k]
+                W.stats.channel = W_chn[k]
+                W_sac[k].append(W)
+            P_stream = P_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
+            S_stream = S_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
+            M_stream = M_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
+            return P_stream, S_stream, M_stream
+
+
+        # <Case 3>
+        # Data samples are larger than STMF_max_sec/delta
+        seg_n = np.round(wf[0].stats.npts / int(STMF_max_sec/wf[0].stats.delta))\
+            .astype(int)
 
         seg_wf_stt = np.array([wf_stt + STMF_max_sec*S for S in range(seg_n)])
         P_stream, S_stream, M_stream = Stream(), Stream(), Stream()
@@ -623,10 +724,56 @@ class PhasePicker:
                 seg_slice_ent = seg_wf_stt[S] + STMF_max_sec + self.pred_npts*self.dt
             else:
                 seg_slice_ent = wf[0].stats.endtime
-            _wf = deepcopy(wf).slice(seg_slice_stt, seg_slice_ent)
-            ### phase picking and detection
-            array_P_med, array_S_med, array_M_med = self.predict(_wf, 
-                postprocess=self.postprocess_config)
+
+            _wf = sac_len_complement(
+                deepcopy(wf).slice(seg_slice_stt, seg_slice_ent+self.pred_npts*self.dt),
+                len(wf[0].data)+self.pred_npts
+            )
+            wf_slices, pad_bef, pad_aft = conti_standard_wf_fast(
+                _wf,
+                pred_npts=self.pred_npts,
+                pred_interval_sec=self.pred_interval_sec,
+                dt=self.dt,
+            )
+            
+            predPhase, masks = self.model.predict(wf_slices)
+            del wf_slices
+            gc.collect()
+
+            wf_npts = len(_wf[0].data)
+            array_P_med, array_S_med, array_M_med = pred_MedianFilter(
+                preds=predPhase,
+                masks=masks,
+                wf_npts=wf_npts,
+                dt=self.dt,
+                pred_npts=self.pred_npts,
+                pred_interval_sec=self.pred_interval_sec,
+                pad_bef=pad_bef,
+                pad_aft=pad_aft,
+            )
+
+            del predPhase
+            del masks
+            gc.collect()
+            # replace nan by 0
+            find_nan = np.where(np.isnan(array_M_med))[0]
+            array_P_med[find_nan] = np.zeros(len(find_nan))
+            array_S_med[find_nan] = np.zeros(len(find_nan))
+            array_M_med[find_nan] = np.zeros(len(find_nan))
+            # replace inf by 0
+            find_inf = np.where(np.isnan(array_M_med))[0]
+            array_P_med[find_inf] = np.zeros(len(find_inf))
+            array_S_med[find_inf] = np.zeros(len(find_inf))
+            array_M_med[find_inf] = np.zeros(len(find_inf))
+
+            if postprocess:
+                array_P_med, array_S_med, array_M_med = pred_postprocess(
+                    array_P_med,
+                    array_S_med,
+                    array_M_med,
+                    dt=self.dt,
+                    **self.postprocess_config,
+                )
 
             W_data = [array_P_med, array_S_med, array_M_med]
             W_chn = ["redpan_P", "redpan_S", "redpan_mask"]
@@ -636,9 +783,15 @@ class PhasePicker:
                 W.data = W_data[k]
                 W.stats.channel = W_chn[k]
                 W_sac[k].append(W)
+            P_stream = P_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
+            S_stream = S_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
+            M_stream = M_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
         P_stream = P_stream.merge(method=1)
         S_stream = S_stream.merge(method=1)
         M_stream = M_stream.merge(method=1)
+        P_stream = P_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
+        S_stream = S_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
+        M_stream = M_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
         return P_stream, S_stream, M_stream
 
 
