@@ -602,7 +602,7 @@ class PhasePicker:
             )
             array_p, array_s = array_pick[0].numpy().T[:2]
             array_m = array_mask[0].numpy().T[0]
-            
+
             gc.collect()
             # replace nan by 0
             find_nan = np.where(np.isnan(array_m))[0]
@@ -716,6 +716,7 @@ class PhasePicker:
         seg_wf_stt = np.array([wf_stt + STMF_max_sec*S for S in range(seg_n)])
         P_stream, S_stream, M_stream = Stream(), Stream(), Stream()
         for S in range(seg_n):
+            _P_stream, _S_stream, _M_stream = Stream(), Stream(), Stream()
             if S == 0:
                 seg_slice_stt = seg_wf_stt[S]
             else:
@@ -777,21 +778,26 @@ class PhasePicker:
 
             W_data = [array_P_med, array_S_med, array_M_med]
             W_chn = ["redpan_P", "redpan_S", "redpan_mask"]
-            W_sac = [P_stream, S_stream, M_stream]
+            W_sac = [_P_stream, _S_stream, _M_stream]
             for k in range(3):
                 W = _wf[0].copy()
                 W.data = W_data[k]
                 W.stats.channel = W_chn[k]
                 W_sac[k].append(W)
-            P_stream = P_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
-            S_stream = S_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
-            M_stream = M_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
+            _P_stream = _P_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
+            _S_stream = _S_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
+            _M_stream = _M_stream.slice(_wf[0].stats.starttime, _wf[0].stats.endtime)
+            P_stream.append(_P_stream[0])
+            S_stream.append(_S_stream[0])
+            M_stream.append(_M_stream[0])
         P_stream = P_stream.merge(method=1)
         S_stream = S_stream.merge(method=1)
         M_stream = M_stream.merge(method=1)
+
         P_stream = P_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
         S_stream = S_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
         M_stream = M_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
+
         return P_stream, S_stream, M_stream
 
 
