@@ -20,9 +20,9 @@ def redpan_picker(
     # load model
     try:
         mdl_hdr = os.path.basename(model_path)
-        if mdl_hdr[-3:] == '30s':
+        if '30s' in mdl_hdr:
             pred_npts = 3000
-        elif mdl_hdr[-3:] == '60s':
+        elif '60s' in mdl_hdr:
             pred_npts = 6000
         # load model and weights
         frame = unets()
