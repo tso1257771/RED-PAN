@@ -37,7 +37,7 @@ model_path = f"../pretrained_model/{mdl_hdr}"
 datadir = "./Ridgecrest_WFs"
 # find waveform directories
 Ddir = np.unique(glob(os.path.join(datadir, "????.???.??")))
-outdir = f"./out_data/{mdl_hdr}_pred_Ridgecrest_WFs_post"
+outdir = f"./out_data/{mdl_hdr}_pred_Ridgecrest_WFs"
 # if you want to remove prediction directories, uncommand this line
 #shutil.rmtree(outdir, ignore_errors=True)
 
