@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 plt.rcParams["font.size"] = 12
 plt.rcParams["font.family"] = "Helvetica"
-from obspy import read
+from obspy import read, UTCDateTime
 from obspy.signal import filter
 from scipy.signal import tukey
 from glob import glob
@@ -15,7 +15,8 @@ from data_utils import MWA_joint_ENZsnr, MWA_suffix_Psnr
 
 
 def mosaic_basic_info(
-    read_path_info, psres_multiple=1.5, base_wf_sec=60, buffer_secs_bef_P=0.5, dt=0.01
+    read_path_info, psres_multiple=1.5, base_wf_sec=60, 
+    buffer_secs_bef_P=0.5, dt=0.01, wf_metadata=None,
 ):
     """
     return basic information for making mosaic waveform
@@ -34,9 +35,23 @@ def mosaic_basic_info(
         except:
             raise ValueError("Check the path of waveform !")
             continue
+
         info = trc[0].stats
-        tp = info.starttime - info.sac.b + info.sac.t1
-        ts = info.starttime - info.sac.b + info.sac.t2
+        if not info.sampling_rate == 100:
+            trc = sac_len_complement(trc).resample(100)
+        else:
+            trc = sac_len_complement(trc)
+
+        if not wf_metadata is None:
+            tp = UTCDateTime(wf_metadata[t:t+1].tp.values[0])
+            ts = UTCDateTime(wf_metadata[t:t+1].ts.values[0])
+        else:
+            if (not 't4' in info.sac) or (not 't3' in info.sac):
+                return None, None, None, None, None, None
+            if np.isnan(info.sac.t3) or np.isnan(info.sac.t4):
+                return None, None, None, None, None, None
+            tp = info.starttime - info.sac.b + info.sac.t3
+            ts = info.starttime - info.sac.b + info.sac.t4
 
         residual = ts - tp
 
@@ -190,24 +205,30 @@ def mosaic_wf_marching(
         else:
             if p[1] - trc_pairs[ct][0].stats.endtime > 0:
                 return None, None, None
-
+            if p[0] > p[1]:
+                return None, None, None
             mosaic_trc = sac_len_complement(trc_pairs[ct].slice(p[0], p[1]))
 
             mosaic_pt = cumsum_npts[ct - 1]
 
+            # new_p_utc.append(
+            #     slice_idx_to_end[0][0] + mosaic_pt * dt + (p_utc[ct] - p[0])
+            # )
+            # new_s_utc.append(
+            #     slice_idx_to_end[0][0] + mosaic_pt * dt + (s_utc[ct] - p[0])
+            # )
             new_p_utc.append(
-                slice_idx_to_end[0][0] + mosaic_pt * dt + (p_utc[ct] - p[0])
+                base_trc[0].stats.starttime + mosaic_pt * dt + (p_utc[ct] - p[0])
             )
             new_s_utc.append(
-                slice_idx_to_end[0][0] + mosaic_pt * dt + (s_utc[ct] - p[0])
+                base_trc[0].stats.starttime + mosaic_pt * dt + (s_utc[ct] - p[0])
             )
-
             mosaic_trc.sort()
             mosaic_trc = mosaic_trc.detrend("demean")
             mosaic_ENZ = np.array([i.data for i in mosaic_trc])
 
             # stack waveform
-            mosaic_n = np.min([len(i) for i in mosaic_ENZ])
+            mosaic_npts = np.min([len(i) for i in mosaic_ENZ])
             avail_npts = np.min([len(i.data[mosaic_pt:]) for i in base_trc])
 
             for m in range(len(mosaic_ENZ)):
@@ -215,13 +236,13 @@ def mosaic_wf_marching(
                     scale = np.random.uniform(scaling[0], scaling[1])
                 elif not scaling:
                     scale = 1
-                if mosaic_n >= avail_npts:
+                if mosaic_npts >= avail_npts:
                     base_trc[m].data[mosaic_pt : mosaic_pt + avail_npts] += (
                         mosaic_ENZ[m][:avail_npts] * scale
                     )
                 else:
-                    base_trc[m].data[mosaic_pt : mosaic_pt + mosaic_n] += (
-                        mosaic_ENZ[m][:mosaic_n] * scale
+                    base_trc[m].data[mosaic_pt : mosaic_pt + mosaic_npts] += (
+                        mosaic_ENZ[m][:mosaic_npts] * scale
                     )
             new_mosaic_utc.append(slice_idx_to_end[0][0] + mosaic_pt * dt)
 
@@ -255,6 +276,12 @@ def mosaic_wf_marching(
         joint_pt_pair.append(joint_pt)
 
         # fill in mosaic waveform
+        print(base_trc)
+        print(ms_stt)
+        if ms_stt < base_trc[0].stats.starttime:
+            print("preceding waveform not long enough")
+            return None, None, None
+
         ms_wf = sac_len_complement(base_trc.copy().slice(ms_stt, ms_ent))
         ms_wf.sort()
         fake_E = ms_wf[0].data[:data_npts]
@@ -482,9 +509,10 @@ def mosaic_wf_plot_detect(
                 )
         ax[i].set_ylabel(label[i])
     ax[0].set_title("Mosaic-concatenated waveform")
+    if show:
+        plt.show()    
     if save:
         plt.savefig(save, dpi=150)
         plt.close()
-    if show:
-        plt.show()
+
     return fig
