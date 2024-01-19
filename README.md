@@ -20,13 +20,17 @@ git clone https://github.com/tso1257771/RED-PAN.git
 cd RED-PAN
 ```
 
-Create a new environment 
+Create a new environment via conda & pip
 
 ```bash
 conda update conda
-conda env create --file environment.yml
-conda activate REDPAN
+conda create --name redpan python=3.9
+conda activate redpan
+pip install --upgrade pip
+ pip install -r requirements
+
 ```
+
 
 
 ### Project Architecture
