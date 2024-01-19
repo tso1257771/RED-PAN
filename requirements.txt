@@ -1,4 +1,7 @@
 ipython
 obspy
+pandas
+numpy
+matplotlib
 tensorflow==2.14.0
 tensorflow-addons
