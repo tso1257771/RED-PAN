@@ -27,7 +27,7 @@ conda update conda
 conda create --name redpan python=3.9
 conda activate redpan
 pip install --upgrade pip
- pip install -r requirements
+pip install -r requirements
 
 ```
 
