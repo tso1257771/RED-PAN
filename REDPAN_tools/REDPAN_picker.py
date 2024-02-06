@@ -92,8 +92,9 @@ def picker_info(
     return eq_collections
 
 def extract_picks(raw_wf, P_stream, S_stream, M_stream, dt=0.01, 
-        p_amp_estimate_sec=1, s_amp_estimate_sec=3, args={
-        "detection_threshold":0.5, "P_threshold":0.3, "S_threshold":0.3
+        p_amp_estimate_sec=1, s_amp_estimate_sec=3, calculate_snr=False, 
+        args={
+            "detection_threshold":0.5, "P_threshold":0.3, "S_threshold":0.3
         }
     ):
     """ 
@@ -160,20 +161,52 @@ def extract_picks(raw_wf, P_stream, S_stream, M_stream, dt=0.01,
         P_amp = np.max(np.abs(wf_data[:, K[1][2] : K[1][2]+p_amp_estimate_npts ]))
         S_amp = np.max(np.abs(wf_data[:, K[1][4] : K[1][4]+s_amp_estimate_npts ]))
 
-        pick_df.append({
-            "id": trc_id,
-            "timestamp": P_timestamp,
-            "amp": P_amp,
-            "prob": P_pb,
-            "type": 'p'
-        }) 
-        pick_df.append({
-            "id": trc_id,
-            "timestamp": S_timestamp,
-            "amp": S_amp,
-            "prob": S_pb,
-            "type": 's'
-        })
+
+        if calculate_snr:
+            P_nz_start_pt =  K[1][2]-p_amp_estimate_npts
+            if P_nz_start_pt < 0:
+                P_nz_start_pt = 0
+            P_nz = np.max(np.abs(wf_data[:, P_nz_start_pt : K[1][2]]))
+            P_snr = np.sqrt(P_amp**2/P_nz**2)
+
+            S_nz_start_pt =  K[1][4]-s_amp_estimate_npts
+            if S_nz_start_pt < 0:
+                S_nz_start_pt = 0
+            S_nz = np.max(np.abs(wf_data[:, S_nz_start_pt : K[1][4]]))
+            S_snr = np.sqrt(S_amp**2/S_nz**2)
+
+            pick_df.append({
+                "id": trc_id,
+                "timestamp": P_timestamp,
+                "amp": P_amp,
+                "prob": P_pb,
+                'snr': P_snr,
+                "type": 'p'
+            }) 
+            pick_df.append({
+                "id": trc_id,
+                "timestamp": S_timestamp,
+                "amp": S_amp,
+                "prob": S_pb,
+                'snr': S_snr,
+                "type": 's'
+            })
+        else:
+            pick_df.append({
+                "id": trc_id,
+                "timestamp": P_timestamp,
+                "amp": P_amp,
+                "prob": P_pb,
+                "type": 'p'
+            }) 
+            pick_df.append({
+                "id": trc_id,
+                "timestamp": S_timestamp,
+                "amp": S_amp,
+                "prob": S_pb,
+                "type": 's'
+            })
+
     pick_df = pd.DataFrame(pick_df)
     #              id                timestamp           amp      prob type
     # 0    CI.CCC..HH  2019-07-07T07:50:08.637   9198.138504  0.543340    p
