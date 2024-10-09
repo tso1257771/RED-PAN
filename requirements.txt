@@ -1,8 +1,10 @@
 ipython
 obspy
 pandas
-numpy
+numpy==1.23.5
 matplotlib
 scikit-learn
+scipy==1.8.1
+pandas==1.5.3
 tensorflow==2.14.0
 tensorflow-addons
