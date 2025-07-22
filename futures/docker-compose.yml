@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  redpan:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: redpan:latest
+    container_name: redpan-dev
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - NUMEXPR_MAX_THREADS=32
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+    volumes:
+      - ./data:/data
+      - ./models:/models
+      - ./output:/output
+      - ./workspace:/workspace
+      - .:/app  # Development mode - mount source code
+    ports:
+      - "8888:8888"  # Jupyter
+      - "6006:6006"  # TensorBoard (optional)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    command: bash
+
+  redpan-jupyter:
+    extends: redpan
+    container_name: redpan-jupyter
+    command: jupyter
+    ports:
+      - "8888:8888"
+
+  redpan-demo:
+    extends: redpan
+    container_name: redpan-demo
+    command: ["demo"]
+    depends_on:
+      - redpan
+
+  redpan-test:
+    extends: redpan
+    container_name: redpan-test
+    command: ["test"]
+    depends_on:
+      - redpan
+
+networks:
+  default:
+    name: redpan-network

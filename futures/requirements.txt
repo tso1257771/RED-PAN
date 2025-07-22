@@ -1,0 +1,7 @@
+ipython
+sklearn==1.6.1
+pandas==1.5.3
+numpy==1.23.5
+obspy>=1.2
+tensorflow-gpu>=2.5.0
+tensorflow-addons>=0.11.2
