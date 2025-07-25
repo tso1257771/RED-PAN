@@ -286,31 +286,44 @@ class REDPAN:
         Returns:
             Tuple of (P_predictions, S_predictions, Mask_predictions)
         """
-        if len(wf[0].data) < self.pred_npts:
-            raise ValueError(f"Data should be longer than {self.pred_npts} points.")
-        
-        # Step 1: Prepare waveform slices (exact original logic)
-        wf_slices, pad_bef, pad_aft = self._prepare_waveform_slices(wf)
-        
-        # Step 2: Run batch prediction
-        predictions, masks = self._batch_predict(wf_slices)
-        
-        # Clean up slices immediately
-        del wf_slices
-        gc.collect()
-        
-        # Step 3: TRUE SeisBench-style direct accumulation
-        wf_npts = len(wf[0].data)
-        array_P_med, array_S_med, array_M_med = self._seisbench_accumulation(
-            predictions=predictions,
-            masks=masks,
-            wf_npts=wf_npts,
-            pad_before=pad_bef,
-            pad_after=pad_aft
-        )
-        
-        # Clean up predictions
-        del predictions, masks
+        if len(wf[0].data)+1 <= self.pred_npts:
+            logging.warning(f"Data length <= than {self.pred_npts} points.")
+            wf_npts = len(wf[0].data)
+            # This will simple fill value after the end of the waveform
+            _wf = sac_len_complement(wf.copy(), max_length=self.pred_npts)
+            _wf = stream_standardize(_wf, data_length=self.pred_npts)
+            
+            batch_data = np.stack(
+                [W.data for W in _wf], -1)[np.newaxis, ...]
+            picks, masks = self.model.predict(batch_data, verbose=0)
+            array_P_med = picks[0].T[0][:wf_npts]
+            array_S_med = picks[0].T[1][:wf_npts]
+            array_M_med = masks[0].T[0][:wf_npts]
+            # Clean up predictions
+            del batch_data, picks, masks
+        else:
+            # Step 1: Prepare waveform slices (exact original logic)
+            wf_slices, pad_bef, pad_aft = self._prepare_waveform_slices(wf)
+            
+            # Step 2: Run batch prediction
+            predictions, masks = self._batch_predict(wf_slices)
+            
+            # Clean up slices immediately
+            del wf_slices
+            gc.collect()
+            
+            # Step 3: TRUE SeisBench-style direct accumulation
+            wf_npts = len(wf[0].data)
+            array_P_med, array_S_med, array_M_med = self._seisbench_accumulation(
+                predictions=predictions,
+                masks=masks,
+                wf_npts=wf_npts,
+                pad_before=pad_bef,
+                pad_after=pad_aft
+            )
+            
+            # Clean up predictions
+            del predictions, masks
         gc.collect()
         
         # Handle NaN/Inf values (same as original)
@@ -340,7 +353,29 @@ class REDPAN:
         gc.collect()
         
         return array_P_med, array_S_med, array_M_med
-    
+
+    def _output_stream_postprocess(self, P_stream, S_stream, M_stream, postprocess_config=None):
+        """
+        Apply postprocessing to the output arrays.
+        """
+        P_stream_post = deepcopy(P_stream)
+        S_stream_post = deepcopy(S_stream)
+        M_stream_post = deepcopy(M_stream)
+        array_P = P_stream_post[0].data
+        array_S = S_stream_post[0].data
+        array_M = M_stream_post[0].data
+        array_P, array_S, array_M = pred_postprocess(
+            array_P,
+            array_S,
+            array_M,
+            dt=self.dt,
+            **self.postprocess_config,
+        )
+        P_stream_post[0].data = array_P
+        S_stream_post[0].data = array_S
+        M_stream_post[0].data = array_M
+        return P_stream_post, S_stream_post, M_stream_post
+
     def annotate_stream(self, wf: Stream, postprocess: bool = False) -> Tuple[Stream, Stream, Stream]:
         """
         Annotate stream with REDPAN predictions, creating ObsPy streams
@@ -358,7 +393,8 @@ class REDPAN:
         from copy import deepcopy
         
         # Get predictions using the main predict function
-        array_P, array_S, array_M = self.predict(wf, postprocess=postprocess)
+        array_P, array_S, array_M = self.predict(
+            wf, postprocess=postprocess)
         
         # Create empty streams for P, S, and mask predictions
         P_stream, S_stream, M_stream = Stream(), Stream(), Stream()
