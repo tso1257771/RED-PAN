@@ -1,25 +1,17 @@
-name: REDPAN
-
-#channels:
-#  - conda-forge
-#  - defaults
-  
+name: red-pan
+channels:
+  - defaults
+  - conda-forge
 dependencies:
-  - python==3.9
-  - anaconda
+  - python=3.10
   - pip
-
   - pip:
     - ipython
-    - sklearn
-    - matplotlib==3.3.2  
-    - obspy==1.4.1
-    - tensorflow==2.14.0
-    - tensorflow-addons==0.11.2
-    - numpy==1.23.5
-    - pandas==1.5.3
-    - scipy==1.8.1
-    - 
-    #- mpi4py=3.0.3
-    #- numba
-    #- protobuf==3.20.1
+    - scikit-learn<=1.4.2
+    - pandas<=2.2.2
+    - numpy<=1.26.4
+    - obspy==1.4
+    - protobuf>=3.2
+    - scipy<=1.11.4
+    - tensorflow-gpu<=2.10
+    - tensorflow-addons>=0.11.2

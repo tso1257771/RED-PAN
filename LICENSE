@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2022 tso1257771
+Copyright (c) 2025 tso1257771
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,47 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## Third-Party Acknowledgments
+
+RED-PAN builds upon and is inspired by several open-source projects:
+
+### SeisBench
+- **License**: MIT License
+- **Copyright**: SeisBench contributors
+- **Inspiration**: Direct array accumulation approach and Gaussian weighting techniques
+
+### NumPy
+- **License**: BSD 3-Clause License
+- **Copyright**: NumPy developers
+
+### TensorFlow
+- **License**: Apache License 2.0
+- **Copyright**: The TensorFlow Authors
+
+### ObsPy (Optional dependency)
+- **License**: GNU Lesser General Public License v3.0
+- **Copyright**: The ObsPy Development Team
+
+## Citation
+
+If you use RED-PAN in your research, please consider citing:
+
+```bibtex
+@article{Liao2022,
+  title = {RED-PAN: Real-Time Earthquake Detection and Phase-Picking With Multitask Attention Network},
+  volume = {60},
+  ISSN = {1558-0644},
+  url = {http://dx.doi.org/10.1109/TGRS.2022.3205558},
+  DOI = {10.1109/tgrs.2022.3205558},
+  journal = {IEEE Transactions on Geoscience and Remote Sensing},
+  publisher = {Institute of Electrical and Electronics Engineers (IEEE)},
+  author = {Liao,  Wu-Yu and Lee,  En-Jui and Chen,  Da-Yi and Chen,  Po and Mu,  Dawei and Wu,  Yih-Min},
+  year = {2022},
+  pages = {1–11}
+}
+```
+
+Please also cite the SeisBench as appropriate for your application.

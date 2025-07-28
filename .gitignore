@@ -3,3 +3,5 @@
 **/__pycache__/
 
 ./scripts
+./jupyter_notebooks/Vrancea/outputs
+./legacy

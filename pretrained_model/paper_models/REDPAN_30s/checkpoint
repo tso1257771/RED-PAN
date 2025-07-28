@@ -1,2 +1,0 @@
-model_checkpoint_path: "train.weights"
-all_model_checkpoint_paths: "train.weights"
