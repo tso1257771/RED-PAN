@@ -11,6 +11,7 @@ continuous seismic phase picking.
 import gc
 import logging
 import numpy as np
+import tensorflow as tf
 from copy import deepcopy
 from typing import Tuple
 from obspy import Stream
@@ -144,11 +145,10 @@ class REDPAN:
         all_masks = []
         
         logger.debug(f"Running {n_slices} slices in {n_batches} batches")
-        
+            
         for batch_idx in range(n_batches):
             start_idx = batch_idx * self.batch_size
             end_idx = min(start_idx + self.batch_size, n_slices)
-            
             batch_data = wf_slices[start_idx:end_idx]
             
             # Run prediction
@@ -164,19 +164,18 @@ class REDPAN:
             all_predictions.append(predictions)
             all_masks.append(masks)
             
-            # Memory cleanup - more aggressive cleanup
+            # Only cleanup variables
             del batch_data, pred_result
-            # Force cleanup every few batches to prevent memory buildup
-            if batch_idx % 3 == 0:
+            # Less frequent cleanup - only every 25 batches
+            if batch_idx % 25 == 0 and batch_idx > 0:
                 gc.collect()
         
         # Concatenate results
         final_predictions = np.concatenate(all_predictions, axis=0)
         final_masks = np.concatenate(all_masks, axis=0)
         
-        # Final cleanup
+        # FIXED: Only cleanup variables, keep TensorFlow session alive
         del all_predictions, all_masks
-        gc.collect()
         
         logger.debug(f"Batch prediction completed: {final_predictions.shape}")
         return final_predictions, final_masks
@@ -188,7 +187,7 @@ class REDPAN:
                                pad_before: int,
                                pad_after: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        TRUE SeisBench-style direct array accumulation
+        SeisBench-style direct array accumulation
         
         This is the key optimization: NO list-based accumulation!
         Direct array operations only.
@@ -245,8 +244,8 @@ class REDPAN:
             M_accumulator[start_pos:end_pos] += mm * weights
             weight_accumulator[start_pos:end_pos] += weights
             
-            # Clean up temporary variables every 25 iterations to prevent memory buildup
-            if i % 25 == 0:
+            # Clean up temporary variables every iteration to prevent memory buildup
+            if i % 100 == 0:
                 gc.collect()
         
         # Vectorized normalization (avoid division by zero)
@@ -256,9 +255,7 @@ class REDPAN:
         S_final = S_accumulator / weight_accumulator
         M_final = M_accumulator / weight_accumulator
         
-        # Clean up intermediate arrays
-        del P_accumulator, S_accumulator, M_accumulator, weight_accumulator
-        gc.collect()
+
         
         # Remove padding exactly like original
         P_result = P_final[pad_before:-pad_after] if pad_after > 0 else P_final[pad_before:]
@@ -266,7 +263,7 @@ class REDPAN:
         M_result = M_final[pad_before:-pad_after] if pad_after > 0 else M_final[pad_before:]
         
         # Clean up final intermediate arrays
-        del P_final, S_final, M_final
+        del P_accumulator, S_accumulator, M_accumulator, weight_accumulator, P_final, S_final, M_final
         gc.collect()
         
         # Validate output length
@@ -310,7 +307,6 @@ class REDPAN:
             
             # Clean up slices immediately
             del wf_slices
-            gc.collect()
             
             # Step 3: TRUE SeisBench-style direct accumulation
             wf_npts = len(wf[0].data)
@@ -337,7 +333,6 @@ class REDPAN:
         
         # Clean up intermediate masks
         del nan_mask, inf_mask, invalid_mask
-        gc.collect()
         
         # Apply postprocessing if requested
         if postprocess and hasattr(self, 'postprocess_config') and self.postprocess_config:
@@ -350,8 +345,6 @@ class REDPAN:
             )
         
         # Final cleanup before returning results
-        gc.collect()
-        
         return array_P_med, array_S_med, array_M_med
 
     def _output_stream_postprocess(self, P_stream, S_stream, M_stream, postprocess_config=None):
@@ -417,9 +410,8 @@ class REDPAN:
         M_stream = M_stream.slice(wf[0].stats.starttime, wf[0].stats.endtime)
         
         # Clean up temporary arrays
-        del array_P, array_S, array_M, W_data
-        gc.collect()
-        
+        del wf, array_P, array_S, array_M, W_data, W_sac
+
         logger.debug(f"Created annotated streams: P={len(P_stream[0].data)}, "
                     f"S={len(S_stream[0].data)}, M={len(M_stream[0].data)} samples")
         
