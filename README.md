@@ -1,9 +1,6 @@
 # RED-PAN
 This is the official implementation of **Real-time Earthquake Detection and Phase-picking with multi-task Attention Network**<br />
 
-# Project updating (2025/07/22)
-I am rewriting the whole RED-PAN API and application algorithms, will release soon.
-
 https://user-images.githubusercontent.com/30610646/166941015-921d6ba1-f77e-4413-a532-e3e5af6d658f.mp4
 
 ## Summary
@@ -32,5 +29,5 @@ or via environment.yml
 
 ```bash
 conda env create --file environment.yml
-conda activate REDPAN
+conda activate redpan
 ```
