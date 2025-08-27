@@ -1,7 +1,7 @@
 # Ignore compiled Python files
-**/.pyc
+**/*.pyc
 **/__pycache__/
 
-./scripts
-./jupyter_notebooks/Vrancea/outputs
-./legacy
+scripts
+jupyter_notebooks/Vrancea/outputs/
+legacy
