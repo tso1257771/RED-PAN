@@ -148,6 +148,20 @@ def create_cosine_weights(pred_npts: int) -> np.ndarray:
     
     return normalize_weights(weights).astype(np.float32)
 
+def align_wf_starttime(wf, target_starttime):
+    '''Pad the waveform if start time is later than target_starttime'''
+    for trc in wf:
+        if trc.stats.starttime > target_starttime:
+            time_diff = trc.stats.starttime - target_starttime
+            # create padding array
+            pad_samples = int(np.ceil(time_diff / trc.stats.delta))
+            pad_value = np.median(trc.data)
+            padding = np.full(pad_samples, pad_value)
+            # concatenate padding and original data
+            trc.data = np.concatenate([padding, trc.data])
+            # update starttime
+            trc.stats.starttime = target_starttime
+    return wf
 
 def sac_len_complement(wf, max_length=None):
     '''Complement sac data into the same length
