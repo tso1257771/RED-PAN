@@ -10,7 +10,7 @@ from glob import glob
 from obspy import read, UTCDateTime
 from redpan import inference_engine
 from redpan.models import unets
-from redpan.utils import sac_len_complement
+from redpan.utils import align_wf_starttime, sac_len_complement
 from redpan.picks import extract_picks
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -136,21 +136,26 @@ for D in range(len(Ddir)):
         
         # read and slice the waveform
         try:
-            wf = read(os.path.join(Ddir[D], wf_idx[ct]))
+            wf = read(os.path.join(Ddir[D], wf_idx[ct]))\
+                .merge(method=1, fill_value="interpolate")
+
         except:
             logging.error(f"Failed to read waveform {wf_idx[ct]}")
             continue
 
+        if bandpass:
+            wf = wf.detrend('demean')\
+                .filter('bandpass', freqmin=bandpass[0], freqmax=bandpass[1])
+            
         if len(wf) != 3:
             for _ in range(3-len(wf)):
                 wf.append(wf[-1])
+
+        # align the waveform starttime time and pad values
+        wf = align_wf_starttime(wf, target_starttime=slice_stt)
         wf = wf.slice(slice_stt, slice_ent)
 
-        if bandpass:
-            wf = wf.detrend('demean').filter('bandpass', 
-                freqmin=bandpass[0], freqmax=bandpass[1])
-
-        ### complement sac data when the length is not consistent across channels
+        # complement sac data when the length is not consistent across channels
         wf = sac_len_complement(wf)
         if len(wf[0].data) < pred_npts:
             continue
@@ -167,6 +172,7 @@ for D in range(len(Ddir)):
             print(f"Time taken for prediction: {t2 - t1}")
         except AttributeError:
             continue
+
         # Extract picks
         pick_df = extract_picks(
             wf, 
@@ -186,8 +192,9 @@ for D in range(len(Ddir)):
         pick_df.to_csv(out_file, index=False)
         logging.info(f"Saved picks to {out_file}")
 
-        # del st, P_stream, S_stream, M_stream, pick_df
-        # # tf.keras.backend.clear_session()
-        # gc.collect()
+        del wf, P_stream, S_stream, M_stream, pick_df
+        if len(tf.config.list_physical_devices('GPU'))>0:
+            tf.keras.backend.clear_session()
+        gc.collect()
 
         log_memory_usage("after processing")
