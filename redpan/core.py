@@ -284,7 +284,7 @@ class REDPAN:
         Returns:
             Tuple of (P_predictions, S_predictions, Mask_predictions)
         """
-        if len(wf[0].data)+1 <= self.pred_npts:
+        if len(wf[0].data) <= self.pred_npts + 3:
             logging.warning(f"Data length <= than {self.pred_npts} points.")
             wf_npts = len(wf[0].data)
             # This will simple fill value after the end of the waveform
