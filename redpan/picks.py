@@ -287,6 +287,37 @@ def pick_peaks(
     except ValueError:
         return -999, -999
 
+def pick_peaks_from_predictions(
+    prediction, labeled_phase_sec, sac_dt=None, search_win=1, peak_value_min=0.01
+):
+    """
+    search for potential pick
+    
+    parameters
+    ----
+    prediction: predicted functions
+    labeled_phase: the timing of labeled phase
+    sac_dt: delta of sac 
+    search_win: time window (sec) for searching 
+    local maximum near labeled phases 
+    """
+    try:
+        tphase = int(round(labeled_phase_sec / sac_dt))
+        search_range = [
+            tphase - int(search_win / sac_dt),
+            tphase + int(search_win / sac_dt),
+        ]
+        peaks, values = find_peaks(prediction, height=peak_value_min)
+
+        in_search = [
+            np.logical_and(v > search_range[0], v < search_range[1]) for v in peaks
+        ]
+        _peaks = peaks[in_search]
+        _values = values["peak_heights"][in_search]
+        return _peaks[np.argmax(_values)] * sac_dt, _values[np.argmax(_values)]
+    except ValueError:
+        return None, None
+        
 
 def pred_postprocess(
     array_P_med,

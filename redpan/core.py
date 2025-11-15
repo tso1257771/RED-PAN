@@ -262,7 +262,6 @@ class REDPAN:
         S_result = S_final[pad_before:-pad_after] if pad_after > 0 else S_final[pad_before:]
         M_result = M_final[pad_before:-pad_after] if pad_after > 0 else M_final[pad_before:]
         
-        del predictions, masks
         # Clean up final intermediate arrays
         del P_accumulator, S_accumulator, M_accumulator, weight_accumulator, P_final, S_final, M_final
         gc.collect()
@@ -284,7 +283,7 @@ class REDPAN:
         Returns:
             Tuple of (P_predictions, S_predictions, Mask_predictions)
         """
-        if len(wf[0].data) <= self.pred_npts + 3:
+        if len(wf[0].data) <= self.pred_npts+1:
             logging.warning(f"Data length <= than {self.pred_npts} points.")
             wf_npts = len(wf[0].data)
             # This will simple fill value after the end of the waveform
