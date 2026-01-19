@@ -1,4 +1,5 @@
 import os
+import logging
 import numpy as np
 import scipy.signal as ss
 import matplotlib.pyplot as plt
@@ -11,7 +12,11 @@ from scipy.signal import tukey
 from glob import glob
 from redpan.data.generate_data_utils import gen_tar_func
 from redpan.data.generate_data_utils import sac_len_complement
+from redpan.data.generate_data_utils import check_snr_for_waveform
 from redpan.data.data_utils import MWA_joint_ENZsnr, MWA_suffix_Psnr
+from redpan.utils import generate_matching_noise, find_reference_signal
+
+logger = logging.getLogger(__name__)
 
 
 def mosaic_basic_info(
@@ -62,6 +67,145 @@ def mosaic_basic_info(
         return None, None, None, None, None, None
     else:
         return p_utc, s_utc, trc_pairs, init_stt, init_ent, base_period
+
+
+def mosaic_basic_info_instance(
+    read_path_info, psres_multiple=1.5, base_wf_sec=60, buffer_secs_bef_P=0.5, dt=0.01
+):
+    """
+    INSTANCE-specific version: reads t1/t2 for P/S picks instead of using SAC 'b' offset.
+    Return basic information for making mosaic waveform.
+    
+    INSTANCE SAC headers:
+    - t1: REDPAN P pick (relative to trace start)
+    - t2: REDPAN S pick (relative to trace start)
+    - t3: Manual P pick (may be -12345 if not set)
+    - t4: Manual S pick (may be -12345 if not set)
+    
+    Args:
+        read_path_info: List of file path patterns to read waveforms
+        psres_multiple: Multiplier for P-S residual to determine window end
+        base_wf_sec: Base waveform length in seconds
+        buffer_secs_bef_P: Buffer time before P arrival
+        dt: Sample interval in seconds
+        
+    Returns:
+        Tuple of (p_utc, s_utc, trc_pairs, init_stt, init_ent, base_period)
+        or (None, None, None, None, None, None) if invalid
+    """
+    p_utc = []
+    s_utc = []
+    residual_ps = []
+    trc_pairs = []
+    
+    for t in range(len(read_path_info)):
+        try:
+            trc = read(read_path_info[t])
+            trc.sort()
+            if len(trc) != 3:
+                lack_n = 3 - len(trc)
+                for N in range(lack_n):
+                    trc.append(trc[-1].copy())
+        except Exception as err:
+            logger.debug(f"Failed to read {read_path_info[t]}: {err}")
+            continue
+            
+        info = trc[0].stats
+        hdr = info.sac
+        
+        # INSTANCE uses t1/t2 for REDPAN picks (primary)
+        # Use manual picks t3/t4 if available and valid
+        pred_tp = hdr.t1  # REDPAN P
+        pred_ts = hdr.t2  # REDPAN S
+        
+        man_tp = getattr(hdr, 't3', -12345.0)
+        man_ts = getattr(hdr, 't4', -12345.0)
+        
+        # Use manual if valid, otherwise use REDPAN
+        if man_tp is not None and man_tp != -12345.0:
+            tp_pick = man_tp
+        else:
+            tp_pick = pred_tp
+            
+        if man_ts is not None and man_ts != -12345.0:
+            ts_pick = man_ts
+        else:
+            ts_pick = pred_ts
+        
+        # Calculate absolute times
+        # For INSTANCE data: t1/t2 are relative to trace starttime
+        tp = info.starttime + tp_pick
+        ts = info.starttime + ts_pick
+        
+        residual = ts - tp
+        if residual <= 0:
+            logger.debug(f"Invalid P-S residual: {residual}")
+            continue
+            
+        p_utc.append(tp)
+        s_utc.append(ts)
+        residual_ps.append(residual)
+        trc_pairs.append(trc)
+        
+    if len(trc_pairs) != len(read_path_info):
+        return None, None, None, None, None, None
+
+    p_utc = np.array(p_utc)
+    s_utc = np.array(s_utc)
+    residual_ps = np.array(residual_ps)
+
+    init_stt = np.array(p_utc) - buffer_secs_bef_P
+    init_ent = np.array(p_utc) + psres_multiple * np.array(residual_ps)
+    base_period = np.sum(init_ent - init_stt)
+
+    if base_period >= base_wf_sec:
+        logger.debug(f'Base period {base_period} >= {base_wf_sec}')
+        return None, None, None, None, None, None
+    else:
+        return p_utc, s_utc, trc_pairs, init_stt, init_ent, base_period
+
+
+def fill_flat_regions_in_mosaic(trc_mosaic, window_size=100, min_unique=50):
+    """
+    Fill flat regions in the final mosaic waveform with spectrum-matched noise.
+    
+    Flat regions (constant or near-constant values) can occur from data gaps,
+    clipping, or instrument issues. This function replaces them with realistic
+    noise that matches the spectral characteristics of the surrounding signal.
+    
+    Args:
+        trc_mosaic: Mosaic waveform array with shape (3, data_npts) for E, N, Z
+        window_size: Size of window to check for flat regions (default: 100)
+        min_unique: Minimum unique values to consider non-flat (default: 50)
+        
+    Returns:
+        Array with same shape as input, with flat regions filled with noise
+    """
+    trc_filled = trc_mosaic.copy()
+    
+    for ch in range(3):
+        data = trc_filled[ch].copy()
+        
+        # Find reference signal for this channel
+        reference_signal = find_reference_signal(
+            data, window_size=300, max_search=len(data)-300, min_unique=200
+        )
+        
+        # Fill flat regions
+        for j in range(0, len(data) - window_size, window_size):
+            segment = data[j:j+window_size]
+            n_unique = len(np.unique(np.round(segment, decimals=4)))
+            if n_unique < min_unique:
+                if reference_signal is not None and len(reference_signal) > 50:
+                    noise_fill = generate_matching_noise(reference_signal, window_size)
+                    data[j:j+window_size] = noise_fill
+                else:
+                    # Fallback: add small random noise
+                    data[j:j+window_size] = np.random.normal(0, 1e-6, window_size)
+        
+        trc_filled[ch] = data
+    
+    return trc_filled
 
 
 def mosaic_wf_marching(

@@ -131,6 +131,43 @@ def snr_pt_v2(
     return snr_p, snr_s
 
 
+def check_snr_for_waveform(wf, tp_utc, ts_utc, snr_threshold=3.0,
+                          mode='std', snr_pre_window=5, snr_post_window=5, highpass=2):
+    """
+    Check if waveform has sufficient SNR for at least one phase.
+    
+    This is a convenience wrapper around snr_pt_v2 that returns a boolean
+    indicating whether the waveform meets a minimum SNR threshold.
+    
+    Args:
+        wf: ObsPy Stream with 3 components (sorted E, N, Z order)
+        tp_utc: P-phase arrival time as UTCDateTime
+        ts_utc: S-phase arrival time as UTCDateTime
+        snr_threshold: Minimum SNR required (default: 3.0)
+        mode: SNR calculation mode, 'std' or 'sqrt' (default: 'std')
+        snr_pre_window: Pre-arrival window in seconds (default: 5)
+        snr_post_window: Post-arrival window in seconds (default: 5)
+        highpass: Highpass filter frequency in Hz, None to disable (default: 2)
+        
+    Returns:
+        bool: True if SNR >= threshold for at least one phase, False otherwise
+    """
+    try:
+        snr_p, snr_s = snr_pt_v2(
+            tr_vertical=wf[2].copy(),
+            tr_horizontal=wf[1].copy(),
+            pt_p=tp_utc,
+            pt_s=ts_utc,
+            mode=mode,
+            snr_pre_window=snr_pre_window,
+            snr_post_window=snr_post_window,
+            highpass=highpass
+        )
+        return snr_p >= snr_threshold or snr_s >= snr_threshold
+    except Exception:
+        return False
+
+
 def stream_from_h5(dataset):
     """
     input: hdf5 dataset
